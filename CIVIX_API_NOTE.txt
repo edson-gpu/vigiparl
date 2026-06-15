@@ -1,0 +1,167 @@
+================================================================================
+SOURCES DE DONNÉES API POUR VIGIPARL
+Note d'intégration — CIVIX + PISTE (APIs gouvernementales)
+================================================================================
+
+================================================================================
+PARTIE 1 — CIVIX (API parlementaire tierce)
+================================================================================
+
+POURQUOI ON EN A BESOIN
+------------------------
+
+Le CdC de VigiParl prévoit de scraper directement data.assemblee-nationale.fr.
+Problème : cette source officielle publie ses données en XML brut, avec des
+formats inconsistants, des structures complexes et une documentation technique
+limitée. Construire un scraper robuste dessus = plusieurs semaines de travail.
+
+CIVIX est une API REST publique read-only qui fait déjà ce travail d'agrégation
+et de structuration à partir des mêmes données open data officielles.
+
+CE QU'ELLE COUVRE (= ce dont VigiParl a besoin en Phase 1)
+------------------------------------------------------------
+  - Recherche de députés
+  - Consultation des scrutins publics
+  - Accès aux votes individuels par député
+  - Dossiers législatifs et statistiques parlementaires
+
+GAIN CONCRET POUR VIGIPARL
+---------------------------
+  1. Remplace (ou complémente) le scraper direct data.assemblee-nationale.fr
+     → La couche COLLECTE de notre pipeline devient bien plus simple
+     → On consomme une API REST propre au lieu de parser du XML brut
+
+  2. Accélère la Phase 1 du planning (S5-S10)
+     → Les résumés IA (Claude API) peuvent être branchés plus vite
+     → On peut avoir des données réelles en BDD dès la 1ère semaine
+
+  3. Fiabilité accrue
+     → CIVIX gère en amont la cohérence et la déduplication des données
+     → Moins de risques de corruption de données dans notre PostgreSQL
+
+  4. Open data garanti
+     → Données issues des publications officielles de l'Assemblée nationale
+     → Compatible licence Etalab 2.0 (même régime juridique que notre CdC prévoit)
+
+INTÉGRATION : Phase 0 (S1-S4) — source principale scrutins/votes/députés.
+
+================================================================================
+PARTIE 2 — PISTE (piste.gouv.fr) — APIs gouvernementales officielles
+================================================================================
+
+PISTE est la plateforme officielle du gouvernement français qui centralise
+l'accès aux APIs publiques via OAuth2. Sur les 39 APIs disponibles dans notre
+compte, 3 sont directement utiles à VigiParl.
+
+--------------------------------------------------------------------------------
+API #1 — LÉGIFRANCE  [CRITIQUE — MVP]
+--------------------------------------------------------------------------------
+
+Priorité     : INDISPENSABLE dès la Phase 1
+Accès        : Sans approbation requise (need_approval: No)
+Authentif.   : OAuth2 via oauth.piste.gouv.fr
+URL prod     : api.piste.gouv.fr
+Version      : 2.4.2
+
+POURQUOI ON EN A BESOIN :
+  Le CdC prévoit legifrance.gouv.fr/api comme source principale pour les textes
+  complets des lois promulguées au Journal Officiel. PISTE est exactement le
+  portail officiel qui donne accès à cette API de manière structurée et
+  authentifiée — sans scraping, sans risque juridique.
+
+CE QU'ELLE APPORTE À VIGIPARL :
+  - Texte intégral de chaque loi promulguée au JO (parfois 400+ pages)
+  - C'est ce texte brut que Claude API (Sonnet) va résumer en 5 lignes
+  - Chronologie officielle : dépôt → commissions → lectures → promulgation
+  - Source primaire irréfutable : 0 risque de contestation de nos données
+  - Licence : domaine public (textes de loi = bien commun)
+
+SANS CETTE API :
+  → On dépend de scraping HTML de legifrance.gouv.fr, fragile et potentiellement
+    bloqué. Avec PISTE, on a l'accès officiel, documenté, stable et gratuit.
+
+ACTION REQUISE : S'inscrire sur piste.gouv.fr et générer les credentials OAuth2
+                 avant le début de la Phase 1 (S5).
+
+--------------------------------------------------------------------------------
+API #2 — JUDILIBRE  [UTILE — Différenciateur V1/V2]
+--------------------------------------------------------------------------------
+
+Priorité     : SECONDAIRE mais fort différenciateur vs Datan.fr
+Accès        : Sans approbation requise (need_approval: No)
+Authentif.   : OAuth2 via oauth.piste.gouv.fr
+Version      : 1.0.0
+
+POURQUOI ON EN A BESOIN :
+  JUDILIBRE donne accès à la jurisprudence française : décisions du Conseil
+  Constitutionnel, Conseil d'État, Cour de Cassation, etc.
+
+CE QU'ELLE APPORTE À VIGIPARL :
+  - Quand une loi est soumise au Conseil Constitutionnel → on peut l'afficher
+    directement sur la fiche de la loi ("Cette loi a été partiellement censurée")
+  - Enrichit la fiche loi avec "Ce qu'en a dit la justice"
+  - Permet de détecter les lois annulées après vote → donnée que Datan n'a pas
+  - Contexte judiciaire des textes : "Cette loi a fait l'objet de 3 recours"
+
+EXEMPLE CONCRET D'USAGE :
+  Loi sur l'immigration votée → JUDILIBRE → "37 articles censurés par le CC
+  le 25/01/2024" → affiché sur la fiche VigiParl avec lien vers la décision.
+
+DIFFÉRENCIATEUR vs Datan.fr : Datan ne croise pas votes et jurisprudence.
+C'est une feature visible, factuelle, et que personne d'autre ne fait.
+
+ACTION REQUISE : À intégrer en Phase 2 (S11-S18) comme enrichissement des
+                 fiches loi, après que le pipeline de base soit stable.
+
+--------------------------------------------------------------------------------
+API #3 — API DECP (Données Essentielles de la Commande Publique)  [V2+]
+--------------------------------------------------------------------------------
+
+Priorité     : VISION LONG TERME — ne pas implémenter en MVP
+Accès        : Sans approbation requise (need_approval: No)
+Version      : 1.0.0
+
+POURQUOI ON POURRAIT EN AVOIR BESOIN (V2) :
+  DECP = tous les marchés publics attribués en France (fournisseur, montant,
+  acheteur public, date).
+
+CE QU'ELLE APPORTERAIT À VIGIPARL :
+  - Croiser les votes d'un député sur des lois sectorielles avec les marchés
+    publics attribués à des entreprises dans sa circonscription
+  - Feature "Conflits d'intérêts potentiels" : "Ce député a voté POUR la loi X
+    (avantageuse pour le BTP) — 3 marchés publics BTP dans sa circo cette année"
+  - Niveau de transparence inédit, aucun concurrent ne le fait
+  - Fonctionnalité à fort impact médiatique (journalistes d'investigation)
+
+ATTENTION : Feature sensible politiquement → nécessite disclaimer clair
+("corrélation ≠ causalité") et validation juridique avant publication.
+
+ACTION REQUISE : À noter comme feature V2+ dans la roadmap. Ne pas implémenter
+                 avant que la crédibilité de VigiParl soit établie (mois 7+).
+
+================================================================================
+RÉSUMÉ — CE QU'ON IGNORE SUR PISTE (et pourquoi)
+================================================================================
+
+Les 36 autres APIs PISTE (DUME, Chorus Pro, G2B, Ingres, E-Signature...) sont
+toutes liées à la comptabilité publique, aux marchés publics B2B, aux RH de
+l'État ou aux signatures électroniques. Aucune ne contient de données
+parlementaires ou législatives utiles à VigiParl.
+
+================================================================================
+TABLEAU DE BORD DES SOURCES DE DONNÉES VIGIPARL
+================================================================================
+
+Source              Contenu                    Priorité   Accès
+-----------------   ------------------------   --------   ----------------------
+CIVIX               Scrutins, votes, députés   MVP P0     API REST publique
+Légifrance (PISTE)  Textes lois JO complets    MVP P1     OAuth2 via piste.gouv.fr
+data.assemblee.fr   Données brutes AN          MVP P0     Open data direct
+nosdeputes.fr/api   Historique présence        MVP P1     API publique
+data.gouv.fr        Financement partis, élus   MVP P1     Open data direct
+JUDILIBRE (PISTE)   Jurisprudence CC/CE/Cass   V1/V2      OAuth2 via piste.gouv.fr
+API DECP (PISTE)    Marchés publics            V2+        OAuth2 via piste.gouv.fr
+
+================================================================================
+Note mise à jour le 15/06/2026 — Edson BOKO / VigiParl
+================================================================================

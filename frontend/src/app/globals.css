@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --navy: #1a3c5e;
+    --civic: #c0392b;
+  }
+  body {
+    @apply text-gray-900;
+  }
+}

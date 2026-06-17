@@ -1,0 +1,195 @@
+================================================================================
+  VIGIPARL — FICHIER DE CHECKPOINT ET REPRISE
+  Créé le : 17 juin 2026
+  Auteur  : Edson BOKO (bokoedson2006@gmail.com / contact@vigiparl.fr)
+================================================================================
+
+RAISON DE LA PAUSE
+------------------
+Manque d'espace disque et ressources insuffisantes sur le PC actuel.
+Reprise prévue : fin août / début septembre 2026, sur un nouveau PC.
+
+REPO GITHUB (source de vérité)
+-------------------------------
+  URL     : https://github.com/edson-gpu/vigiparl
+  Branche : master
+  Commit  : 4e8d5c2 — feat: initialisation Phase 0 — structure complète du projet VigiParl
+  Statut  : PROPRE — 100% poussé sur GitHub, rien en attente
+
+================================================================================
+CE QUI EST DÉJÀ FAIT (Phase 0 — COMPLÈTE ✅)
+================================================================================
+
+ANALYSE & RECHERCHE
+  [x] Cahier des charges lu et analysé (PDF fourni)
+  [x] Concurrent principal analysé : Datan.fr — nos différenciateurs identifiés
+        → VigiParl : résumés IA < 60s + comparateur de votes + alertes citoyen
+  [x] Sources de données officielles identifiées et documentées :
+        - data.assemblee-nationale.fr (scrutins, votes, textes, députés)
+        - CIVIX : API tierce structurée (voir CIVIX_API_NOTE.txt)
+        - Légifrance via PISTE (OAuth2 — TESTÉ ET FONCTIONNEL)
+        - JUDILIBRE via PISTE (jurisprudence CC/CE)
+        - data.gouv.fr (élus, financements partis)
+        - nosdeputes.fr/api (historique + présences)
+
+CREDENTIALS LÉGIFRANCE / PISTE (dans .env local — NE PAS COMMITTER)
+  Client ID     : bdcd6068-64b9-4799-bd22-880d47f555d3
+  Client Secret : af59a657-0e1b-412d-a061-3fdea9611fbb
+  Token URL     : https://oauth.piste.gouv.fr/api/oauth/token
+  API URL       : https://api.piste.gouv.fr/dila/legifrance/lf-engine-app
+  STATUS        : TESTÉ ET FONCTIONNEL (retourne les JO en temps réel)
+  ⚠️  Ces credentials sont dans .env local (NON commité sur GitHub pour sécurité)
+      Sur le nouveau PC : créer backend/.env avec ces valeurs
+
+INFRASTRUCTURE REPO (39 fichiers codés et poussés sur GitHub)
+  [x] .gitignore (protège .env, __pycache__, node_modules, etc.)
+  [x] .env.example (modèle de variables d'environnement sans secrets)
+  [x] docker-compose.yml (backend + worker + scheduler + PostgreSQL + Redis)
+  [x] CIVIX_API_NOTE.txt (documentation de l'API CIVIX)
+
+BACKEND Python/FastAPI
+  [x] backend/app/main.py — point d'entrée FastAPI
+  [x] backend/app/config.py — configuration via variables d'env
+  [x] backend/app/database.py — connexion SQLAlchemy + session
+  [x] backend/app/models/deputy.py — modèle SQLAlchemy Député + Parti
+  [x] backend/app/models/law.py — modèle SQLAlchemy Loi + résumé IA
+  [x] backend/app/models/vote.py — modèle SQLAlchemy Vote (pour/contre/abstention)
+  [x] backend/app/api/v1/deputies.py — endpoint REST GET /deputies
+  [x] backend/app/api/v1/laws.py — endpoint REST GET /laws
+  [x] backend/app/services/legifrance.py — client Légifrance (OAuth2 PISTE)
+  [x] backend/app/services/assemblee.py — client data.assemblee-nationale.fr
+  [x] backend/app/services/claude.py — client Claude API (Sonnet + Haiku)
+  [x] backend/app/workers/celery_app.py — configuration Celery + Redis
+  [x] backend/app/workers/scraper.py — worker de scraping planifié
+  [x] backend/app/workers/ai_summarizer.py — worker de résumés IA
+  [x] backend/alembic/ — migrations de BDD (Alembic configuré)
+  [x] backend/Dockerfile — image Docker backend
+  [x] backend/requirements.txt — dépendances Python
+  [x] backend/tests/__init__.py — structure tests (vide, à remplir)
+
+FRONTEND Next.js 14
+  [x] frontend/src/app/layout.tsx — layout global (metadata, polices)
+  [x] frontend/src/app/page.tsx — page d'accueil avec hero section
+  [x] frontend/src/app/globals.css — design system Tailwind
+  [x] frontend/src/lib/api.ts — client HTTP pour appeler le backend
+  [x] frontend/package.json — dépendances (Next.js, shadcn/ui, Recharts, D3)
+  [x] frontend/tailwind.config.js — config couleurs (#1A3C5E navy / #C0392B civic)
+  [x] frontend/next.config.js — configuration Next.js
+  [x] frontend/tsconfig.json — TypeScript
+
+CI/CD
+  [x] .github/workflows/ci.yml — GitHub Actions (lint + tests au push)
+
+================================================================================
+CE QUI RESTE À FAIRE (par ordre de priorité)
+================================================================================
+
+ÉTAPE 0 — DÉMARRAGE SUR LE NOUVEAU PC (à faire en premier)
+  [ ] Installer Git : https://git-scm.com/download/win
+  [ ] Cloner le repo : git clone https://github.com/edson-gpu/vigiparl.git
+  [ ] Installer Docker Desktop : https://www.docker.com/products/docker-desktop/
+        (ou winget install --id Docker.DockerDesktop -e en admin)
+        IMPORTANT : redémarrer le PC après l'installation de Docker
+  [ ] Installer Node.js 20+ : https://nodejs.org/
+  [ ] Copier le fichier .env dans backend/ avec les credentials PISTE ci-dessus
+  [ ] Vérifier que Docker fonctionne : docker --version
+
+ÉTAPE 1 — LANCER L'ENVIRONNEMENT LOCAL
+  [ ] cd vigiparl
+  [ ] docker compose up   ← démarre PostgreSQL + Redis + backend + workers
+  [ ] cd frontend && npm install   ← installe les dépendances Node.js
+  [ ] cd backend && alembic upgrade head   ← crée les tables en BDD
+  [ ] Vérifier l'API : http://localhost:8000/docs (Swagger auto-généré)
+  [ ] Vérifier le frontend : http://localhost:3000
+  [ ] Ajouter ANTHROPIC_API_KEY dans .env (clé Claude API à créer/récupérer)
+        → https://console.anthropic.com/
+
+PHASE 1 — BACKEND COMPLET (environ 6 semaines)
+  [ ] Finir les endpoints API REST :
+        GET /laws/{id} — détail d'une loi
+        GET /deputies/{id} — profil d'un député
+        GET /votes — liste des scrutins
+        GET /deputies/{id}/votes — votes d'un député
+        POST /subscribe — inscription aux alertes
+  [ ] Intégrer réellement l'API CIVIX pour récupérer les scrutins en temps réel
+  [ ] Implémenter le service Claude pour générer les résumés IA
+        (claude.py est créé mais la logique de génération est à compléter)
+  [ ] Implémenter le worker scraper pour synchronisation automatique
+  [ ] Écrire les tests unitaires (backend/tests/)
+  [ ] Première migration Alembic réelle avec données de test
+
+PHASE 2 — FRONTEND COMPLET (environ 8 semaines)
+  [ ] Page liste des lois avec filtres (parti, date, thème)
+  [ ] Page détail d'une loi (résumé IA + vote par parti + comparateur)
+  [ ] Page profil député (votes, présence, historique)
+  [ ] Comparateur de votes (2 députés côte à côte)
+  [ ] Composant graphique Recharts pour la répartition des votes
+  [ ] Système d'alertes citoyen (inscription email + critères)
+  [ ] Newsletter hebdomadaire (template + envoi via Resend.com)
+  [ ] Mode sombre / accessibilité
+  [ ] SEO (metadata dynamiques, sitemap, OpenGraph)
+
+PHASE 3 — PRODUCTION & LANCEMENT (environ 8 semaines)
+  [ ] Déployer le backend sur Scaleway VPS DEV1-S (~10€/mois)
+  [ ] Déployer le frontend sur Vercel (gratuit)
+  [ ] Configurer PostgreSQL sur Supabase (gratuit jusqu'à 500 MB)
+  [ ] Configurer Cloudflare pour CDN + protection DDoS
+  [ ] Configurer le domaine vigiparl.fr
+  [ ] Bêta privée (10-50 utilisateurs)
+  [ ] Partenariats : associations citoyennes, journalistes, professeurs
+  [ ] Lancement public
+
+================================================================================
+STACK TECHNIQUE (rappel)
+================================================================================
+
+Backend  : Python 3.11+, FastAPI, Celery + Redis, SQLAlchemy + Alembic, PostgreSQL
+Frontend : Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui, Recharts
+IA       : Claude API Anthropic — Sonnet (résumés/newsletter) + Haiku (tags)
+Infra    : Scaleway VPS + Supabase + Vercel + Cloudflare + Resend + Plausible
+Coût MVP : 30 à 116 EUR/mois selon charge
+Licence  : GNU AGPL v3 (open source)
+
+================================================================================
+DESIGN SYSTEM
+================================================================================
+
+Couleur principale (navy)  : #1A3C5E
+Couleur secondaire (civic) : #C0392B
+Police                     : Inter (Google Fonts)
+Composants UI              : shadcn/ui + Radix UI
+
+================================================================================
+LIENS UTILES
+================================================================================
+
+Repo GitHub       : https://github.com/edson-gpu/vigiparl
+API Légifrance    : https://api.piste.gouv.fr/dila/legifrance/lf-engine-app
+API AN            : https://data.assemblee-nationale.fr/
+API CIVIX         : voir CIVIX_API_NOTE.txt dans le repo
+Console Anthropic : https://console.anthropic.com/
+Supabase          : https://supabase.com/
+Vercel            : https://vercel.com/
+Scaleway          : https://www.scaleway.com/
+Cloudflare        : https://www.cloudflare.com/
+Resend.com        : https://resend.com/
+
+================================================================================
+MESSAGE À MOI-MÊME (pour la reprise)
+================================================================================
+
+Quand tu reprends ce projet en août/septembre 2026 :
+
+1. Cloner le repo GitHub (c'est la source de vérité — tout est là)
+2. Lire ce fichier en entier
+3. Suivre les étapes de la section "DÉMARRAGE SUR LE NOUVEAU PC"
+4. La Phase 0 est 100% terminée — ne pas refaire ce qui est fait
+5. Commencer directement par la Phase 1 (backend complet)
+6. Les credentials PISTE/Légifrance sont valides (à vérifier quand même)
+7. La clé Anthropic API est à récupérer sur console.anthropic.com
+
+Bon courage. Ce projet vaut vraiment la peine. 💪
+
+================================================================================
+FIN DU FICHIER CHECKPOINT — Edson BOKO — 17/06/2026
+================================================================================
